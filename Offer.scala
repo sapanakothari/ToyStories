@@ -5,6 +5,7 @@ object Offer{
   val twoPlusOne = price(x=>x*2)_
   val buyOneHalfOnNext=price(x=>x*1.5)_
 
+  //Below 3 declarations are for first 3 stories, uncomment & comment as required
   val offers:Set[Offer] = Set()
   //val offers = Set(Offer("Dove",3,twoPlusOne))	
   //val offers = Set(Offer("Dove",2,buyOneHalfOnNext))	
