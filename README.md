@@ -37,7 +37,7 @@ For story1 -
       val cart = new Cart()
       cart.add("Dove",4)
       cart.add("Axe",2)
-      cart.items -- to see contents of cart
-      cart.discount --to see cart level discount
+      cart.items // to see contents of cart
+      cart.discount //to see cart level discount
       cart.checkout
       
