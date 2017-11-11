@@ -49,8 +49,8 @@ case class CartOffer(val criteria:(Cart)=>Boolean, val discount:Double)
 
 object CartOffer{
 	def fiveKPlus(cart:Cart)=cart.price>=500 
-
-	val offers:Set[CartOffer] = Set(CartOffer(fiveKPlus,20))	
+	val offers:Set[CartOffer] = Set()
+	//val offers:Set[CartOffer] = Set(CartOffer(fiveKPlus,20))	
 	def get(cart:Cart) = offers.filter(_.criteria(cart))
 }
 
