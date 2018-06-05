@@ -1,0 +1,140 @@
+[[VPN]{.underline}](#vpn)
+
+> [[Create new User]{.underline}](#create-new-user-todo)
+>
+> [[Usage]{.underline}](#usage)
+
+[[Service Management]{.underline}](#service-management)
+
+> [[List all Services]{.underline}](#list-all-services)
+>
+> [[Inspecting service details - IP, status, deployment
+> time]{.underline}](#inspecting-service-details---ip-status-deployment-time)
+>
+> [[Viewing service logs]{.underline}](#viewing-service-logs)
+>
+> [[Viewing values passed to command line
+> flags]{.underline}](#viewing-values-passed-to-command-line-flags)
+>
+> [[Redeploying service using latest
+> build]{.underline}](#redeploying-service-using-latest-build)
+
+#### 
+
+#### 
+
+####  
+
+VPN
+===
+
+Services in any environment (dev,demo,staging etc) can be accessed by
+connecting to the VPN network.
+
+Create new User \[**TODO**\]
+----------------------------
+
+TODO: Readme will be available on
+[[credit-line-ops]{.underline}](https://github.com/tsocial/credit-line-ops/blob/master/README.md)
+
+Usage
+-----
+
+Follow the instructions on
+[[https://52.202.24.152/?src=connect]{.underline}](https://52.202.24.152/?src=connect)
+to connect to the VPN environment.
+
+#####  
+
+Service Management
+==================
+
+-   Services are deployed as containers (Please refer to the Service
+    > document to learn how services are shipped, separately). \[Todo -
+    > Link\]
+
+-   We also use **Nomad** (Please refer to the Infrastructure document
+    > to learn how and why Nomad fits in the pieces) \[Todo - Link\]
+
+List all Services 
+------------------
+
+[[Nomad UI]{.underline}](http://10.10.16.204:4646/ui/jobs) gives status
+of all services. There would be one job per service per environment with
+naming convention (servicename\_env).
+
+This page has a searchable, sortable, paginated table of all jobs,
+regardless of job status. This page will automatically update as jobs
+are started, stopped, and allocations transition through states.
+
+Jobs can be filtered for specific environment using search box
+
+![](media/image9.png){width="7.000836614173228in"
+height="3.776042213473316in"}
+
+#####  
+
+Inspecting service details - IP, status, deployment time
+--------------------------------------------------------
+
+From the [[Nomad CLI UI]{.underline}](http://10.10.16.204:4646/ui/jobs)
+,
+
+-   Click on service job to go to the Job Detail page.
+
+-   Click on a task group to navigate to the Task Group Detail page.
+    > This page would give list of instances(allocations) running for
+    > this service.
+
+-   Navigate to the instance to view details like status, deployment
+    > time and IP address
+
+![](media/image5.png){width="6.5in" height="2.1805555555555554in"}
+
+Viewing service logs
+--------------------
+
+From the task group detail page,
+
+-   click task name
+
+-   Navigate to Log tab.
+
+![](media/image8.png){width="6.5in" height="3.125in"}
+
+Viewing values passed to command line flags
+-------------------------------------------
+
+-   Navigate to service-job
+
+-   Click on the definition tab
+
+![](media/image10.png){width="5.953125546806649in"
+height="3.730243875765529in"}
+
+Redeploying service using latest build
+--------------------------------------
+
+Go to [[nomad
+hash-ui]{.underline}](http://10.10.0.232:8000/nomad/global/jobs)
+
+-   Navigate to the required service
+
+-   click restart
+
+-   select **Rolling restart** from the drop-down.
+
+Note -
+
+-   This will automatically pull the docker image tagged as "latest" for
+    > the service.
+
+-   Images are created by Travis. For each environment the branch used
+    > for building image is pre-configured.For dev environment, images
+    > are built from master branch.
+
+-   This will only pull latest image, but if any configuration changes
+    > are required, the job has to be submitted again using nomad cli
+    > client.
+
+![](media/image2.gif){width="6.5in" height="2.4444444444444446in"}
