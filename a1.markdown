@@ -1,140 +1,393 @@
-[[VPN]{.underline}](#vpn)
+##### 
 
-> [[Create new User]{.underline}](#create-new-user-todo)
->
-> [[Usage]{.underline}](#usage)
+##### Table Of Contents
 
-[[Service Management]{.underline}](#service-management)
+**[Command line flags:](#command-line-flags) 2**
 
-> [[List all Services]{.underline}](#list-all-services)
->
-> [[Inspecting service details - IP, status, deployment
-> time]{.underline}](#inspecting-service-details---ip-status-deployment-time)
->
-> [[Viewing service logs]{.underline}](#viewing-service-logs)
->
-> [[Viewing values passed to command line
-> flags]{.underline}](#viewing-values-passed-to-command-line-flags)
->
-> [[Redeploying service using latest
-> build]{.underline}](#redeploying-service-using-latest-build)
+**[Register service with Discovery
+service:](#register-service-with-discovery-service) 3**
 
-#### 
+**[Expose as GRPC service](#expose-as-grpc-service) 4**
 
-#### 
+**[Locate internal GRPC service using Discovery
+service](#locate-internal-grpc-service-using-discovery-service) 6**
 
-####  
+**[Making GRPC methods idempotent](#making-grpc-methods-idempotent) 7**
 
-VPN
-===
+**[Validating incoming request](#validating-incoming-request) 7**
 
-Services in any environment (dev,demo,staging etc) can be accessed by
-connecting to the VPN network.
+**[Consuming internal GRPC service](#consuming-internal-grpc-service)
+8**
 
-Create new User \[**TODO**\]
-----------------------------
-
-TODO: Readme will be available on
-[[credit-line-ops]{.underline}](https://github.com/tsocial/credit-line-ops/blob/master/README.md)
-
-Usage
------
-
-Follow the instructions on
-[[https://52.202.24.152/?src=connect]{.underline}](https://52.202.24.152/?src=connect)
-to connect to the VPN environment.
+##### 
 
 #####  
 
-Service Management
-==================
+##### Command line flags: 
 
--   Services are deployed as containers (Please refer to the Service
-    > document to learn how services are shipped, separately). \[Todo -
-    > Link\]
+Command line flags are used to feed environment specific information to
+services.
 
--   We also use **Nomad** (Please refer to the Infrastructure document
-    > to learn how and why Nomad fits in the pieces) \[Todo - Link\]
+Use [[kingpin]{.underline}](https://gopkg.in/alecthomas/kingpin.v2)
+(version = \"2.2.6\") to parse flags
 
-List all Services 
-------------------
++-------------+-------------+-------------+-------------+-------------+
+| **Flag      | **Purpose** | **Environme | **Mandatory | **Sample    |
+| Name**      |             | nt          | **          | value**     |
+|             |             | Variable**  |             |             |
+|             |             |             |             |             |
+|             |             | **Fallbacks |             |             |
+|             |             | **          |             |             |
++=============+=============+=============+=============+=============+
+| **port**    | port on     | N/A         | No          | 9051        |
+|             | which       |             |             |             |
+|             | service     |             |             |             |
+|             | will listen |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
+| **broadcast | Ip to be    | BROADCAST\_ | No          | 10.10.0.0   |
+| -ip**       | broadcasted | IP          |             |             |
+|             | for other   |             |             |             |
+|             | service to  |             |             |             |
+|             | connect.    |             |             |             |
+|             | The service |             |             |             |
+|             | itself will |             |             |             |
+|             | run on      |             |             |             |
+|             | 0.0.0.0.    |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
+| **fineract- | Fineract    | FINERACT\_A | No          | [[https://1 |
+| addr**      | instance    | DDR         |             | 3.209.34.65 |
+|             | details     |             |             | :8443]{.und |
+| **fineract- |             | FINERACT\_U |             | erline}](ht |
+| user**      |             | SER         |             | tps://13.20 |
+|             |             |             |             | 9.34.65:844 |
+| **fineract- |             | FINERACT\_P |             | 3)          |
+| pwd**       |             | ASSWORD     |             |             |
+|             |             |             |             | mifos       |
+|             |             |             |             |             |
+|             |             |             |             | password    |
++-------------+-------------+-------------+-------------+-------------+
+| **discovery | discovery   | DISCOVERY\_ | No          | enum -      |
+| -driver**   | service     | DRIVER      |             |             |
+|             | available   |             |             | memory      |
+|             | as          |             |             | (default)   |
+|             | in-memory,  |             |             |             |
+|             | etcd or     |             |             | etcd)       |
+|             | consul      |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
+| **discovery | host:port   | DISCOVERY\_ | Yes only if | 0.0.0.0:237 |
+| -addr**     | info of     | ADDR        | etcd        | 9           |
+|             | discovery   |             |             |             |
+|             | service     |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
+| **cache-dri | idempotency | CACHE\_DRIV | No          | enum -      |
+| ver**       | cache       | ER          |             |             |
+|             | available   |             |             | idempotency |
+|             | as          |             |             | .Memory     |
+|             | in-memory   |             |             | (default)   |
+|             | or redis    |             |             |             |
+|             |             |             |             | idempotency |
+|             |             |             |             | .Redis      |
++-------------+-------------+-------------+-------------+-------------+
+| **cache-add | details of  | CACHE\_ADDR | Yes if      | 0.0.0.0:637 |
+| r**         | redis       |             | cache-drive | 9           |
+|             | instance -  | CACHE\_PROT | r           |             |
+| **cache-pro |             | O           | is redis    | tcp         |
+| tocol**     | host:port,  |             |             |             |
+|             | transport   | CACHE\_PASS |             | password    |
+| **cache-pas | protocol    | WORD        |             |             |
+| sword**     | (tcp etc),  |             |             |             |
++-------------+-------------+-------------+-------------+-------------+
 
-[[Nomad UI]{.underline}](http://10.10.16.204:4646/ui/jobs) gives status
-of all services. There would be one job per service per environment with
-naming convention (servicename\_env).
+##### Register service with Discovery service:
 
-This page has a searchable, sortable, paginated table of all jobs,
-regardless of job status. This page will automatically update as jobs
-are started, stopped, and allocations transition through states.
+All services are required to register their address with discovery
+service to enable consumers to lookup their endpoint dynamically and
+acquire connection.
 
-Jobs can be filtered for specific environment using search box
+Service name should come from constants declared in service
+implementation. This name would be used by consumers to lookup service.
 
-![](media/image9.png){width="7.000836614173228in"
-height="3.776042213473316in"}
+  Constant Name       Purpose                                                             Required   sample value
+  ------------------- ------------------------------------------------------------------- ---------- --------------
+  ***Version***       version number of binary                                            Yes        0.0.1
+  ***ServiceName***   name of the service as would be registered with discovery service   Yes        fund
+
+Below table has list of all service names
+
+  Interface                             grpc service name
+  ------------------------------------- -------------------
+  decisionengine/decisionengine.proto   decision\_engine
+  fund/fund.proto                       fund
+  loan/entity.proto                     loan\_entity
+  loan/manager.proto                    loan\_manager
+  paymentgateway/paymentgateway.proto   payment\_gateway
+  settlement/transaction.proto          settlement
+
+Service Address should be derived using the broadcast-ip and port flags.
+
++-----------------------------------------------------------------------+
+| broadcastAddr := fmt.Sprintf(**\"%s:%s\"**, \*broadcastIP, \*port)    |
+|                                                                       |
+| gsc **\"github.com/tsocial/credit-line-common/grpc-server-config\"**  |
+|                                                                       |
+| // service name and address is passed to discovery service as below,  |
+| during server creation (detailed in [[Expose as GRPC                  |
+| service]{.underline}](#expose-as-grpc-service))                       |
+|                                                                       |
+| Discovery: &gsc.DiscoveryOpts{                                        |
+|                                                                       |
+| Driver: \*discoveryDriver,                                            |
+|                                                                       |
+| Addr: \*discoveryAddr,                                                |
+|                                                                       |
+| MyAddr: broadcastAddr,                                                |
+|                                                                       |
+| MyIdent: ***ServiceName***,                                           |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+The registration of service with discovery service is automatically
+handled by the NewCLServer when DiscoveryOpts is passed to it as
+described in [[Expose as GRPC
+service]{.underline}](#expose-as-grpc-service) section.
+
+##### Expose as GRPC service 
+
+Credit line services are exposed as GRPC services. Interfaces are
+defined using protocol buffers. All service definition can be found in
+*[[credit-line-common]{.underline}](http://github.com/tsocial/credit-line-common)*
+repo.
+
+Server should be of type NewCLServer which is defined in
+[*[credit-line-common]{.underline}*](http://github.com/tsocial/credit-line-common)/grpc-server.
+It creates a new grpc Server that comes baked-in with standard things
+that all server would have to perform. It also abstracts underneath
+things like*:*
+
+a.  Recovery - Preventing server from Crashing in case a request hits
+    > panic.
+
+b.  Prometheus - communication for Instrumentation and Monitoring
+
+c.  OpenTracing - Requests are tracked using Opentracing.
+
+d.  Service Discovery - given ident & address is registered for
+    > discovery
+
+e.  Idempotency - multiple hits of same request (identified by
+    > IdempotencyId in header) has the same effect as making a single
+    > request.
+
+Create an instance of grpc\_server\_config by supplying details from
+flags mentioned in [[Command line
+flags:]{.underline}](#command-line-flags). At the moment, config is
+accepted for cache(idempotent server) and discoveryservice. This would
+evolve as more interceptors are added to the grpcServer implementation
+(Prometheus, Tracing etc)
+
+  -------------------------------------------------------------------
+  \"github.com/tsocial/credit-line-common/discovery\"\
+  \"github.com/tsocial/credit-line-common/grpc-server\"\
+  gsc \"github.com/tsocial/credit-line-common/grpc-server-config\"\
+  \"github.com/tsocial/credit-line-common/header\"\
+  \"github.com/tsocial/credit-line-common/idempotency\"\
+  \
+  \
+  serviceConf := gsc.Conf{\
+  Cache: &gsc.CacheOpts{\
+  Driver: \*cacheDriver,\
+  Addr: \*cacheHost,\
+  Protocol: \*cacheProtocol,\
+  Password: \*cachePassword,\
+  },\
+  Discovery: &gsc.DiscoveryOpts{\
+  Driver: \*discoveryDriver,\
+  Addr: \*discoveryHost,\
+  MyAddr: listenAddr,\
+  MyIdent: serviceName,\
+  },\
+  }\
+  s := grpc\_server.NewCLServer(&serviceConf)
+
+  -------------------------------------------------------------------
+
+There should be a defer call for gracefulStop of server
+
+defer s.GracefulStop()
+
+Register service on reflection server
+
+reflection.Register(s)
 
 #####  
 
-Inspecting service details - IP, status, deployment time
---------------------------------------------------------
+##### Locate internal GRPC service using Discovery service
 
-From the [[Nomad CLI UI]{.underline}](http://10.10.16.204:4646/ui/jobs)
-,
+Discovery service must be used to obtain connection to any internal
+credit-line grpc service. The lookup should be executed once & retained
+for service lifetime - recommendation is to do this before starting
+server.
 
--   Click on service job to go to the Job Detail page.
+a.  server struct should have fields to retain connection for any
+    > internal grpc service it consumes
 
--   Click on a task group to navigate to the Task Group Detail page.
-    > This page would give list of instances(allocations) running for
-    > this service.
++-----------------------------------+
+| **type** server **struct** {      |
+|                                   |
+| clc grpc2.CreditLineServiceClient |
+|                                   |
+| lec entity.LoanClient             |
+|                                   |
+| fc fund.FundClient                |
+|                                   |
+| }                                 |
++-----------------------------------+
 
--   Navigate to the instance to view details like status, deployment
-    > time and IP address
+> b\. declare constants - set to service names
 
-![](media/image5.png){width="6.5in" height="2.1805555555555554in"}
++------------------------------------------------+
+| ***LoanEntityService*** = **\"loan\_entity\"** |
+|                                                |
+| ***FundService*** = **\"fund\"**               |
++------------------------------------------------+
 
-Viewing service logs
---------------------
+> c\. Command line flags described in [[Command line
+> flags:]{.underline}](#command-line-flags) sections should be used to get
+> discovery service client instance. From this client instance, connection
+> to other services can be obtained
 
-From the task group detail page,
++--------------------------------------------------------------------+
+| dc, err := discovery.NewClient(\*discoveryDriver, \*discoveryAddr) |
+|                                                                    |
+| **if** err != nil {                                                |
+|                                                                    |
+| panic(err)                                                         |
+|                                                                    |
+| }                                                                  |
+|                                                                    |
+| fundClient, err := dc.GetConn(fundService)                         |
+|                                                                    |
+| **if** err != nil {                                                |
+|                                                                    |
+| panic(err)                                                         |
+|                                                                    |
+| }//similarly lookup for other services                             |
+|                                                                    |
+| manager.RegisterLoanManagerServer(s, &server{                      |
+|                                                                    |
+| lec: loanClient, //save in server instance                         |
+|                                                                    |
+| clc: creditLineClient,                                             |
+|                                                                    |
+| fc: fundClient,                                                    |
+|                                                                    |
+| })                                                                 |
++--------------------------------------------------------------------+
 
--   click task name
+d\. Methods on internal services can then be invoked as below
 
--   Navigate to Log tab.
++-----------------------------------------------------------------------+
+| ctx, checkAvailablityReq := context.WithTimeout(context.Background(), |
+| 10\*time.***Second***)                                                |
+|                                                                       |
+| **defer** checkAvailablityReq()                                       |
+|                                                                       |
+| **if** \_, err := s.fc.DecrementFundValue(ctx, reqCheckAvailablity);  |
+| err != nil {                                                          |
+|                                                                       |
+| **return** nil, err                                                   |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
 
-![](media/image8.png){width="6.5in" height="3.125in"}
+##### Making GRPC methods idempotent
 
-Viewing values passed to command line flags
--------------------------------------------
+Functions that are required to be idempotent, should use the get
+operation exposed by
+***github.com/tsocial/credit-line-common/idempotency*** to check if the
+request was already processed for given idempotencyId. If yes, the
+response obtained from lookup should be returned to consumer as it is
+without processing the actual request.
 
--   Navigate to service-job
+  ------------------------------------------------------
+  resp := &fund.FundTxResponse{}\
+  if err := idempotency.Get(ctx, &resp); err == nil {\
+  return resp, nil\
+  }
 
--   Click on the definition tab
+  ------------------------------------------------------
 
-![](media/image10.png){width="5.953125546806649in"
-height="3.730243875765529in"}
+If the get returned error, it means the lookup failed, and the request
+must be processed.
 
-Redeploying service using latest build
---------------------------------------
+Response from successful requests (error is nil) are automatically added
+to cache by the Idempotency interceptor of the NewCLServer. No explicit
+action is required from method implementation for setting response in
+cache.
 
-Go to [[nomad
-hash-ui]{.underline}](http://10.10.0.232:8000/nomad/global/jobs)
+##### Validating incoming request
 
--   Navigate to the required service
+Validations for incoming request are defined in the service interface
+(protoc files in
+[*[credit-line-common]{.underline}*](http://github.com/tsocial/credit-line-common)/
+repo). Request header should always be mandatory for any incoming
+request.
 
--   click restart
+Each method in GRPC server must validate request for mandatory fields.
 
--   select **Rolling restart** from the drop-down.
+PGV
+*([[protoc-gen-validate]{.underline}](http://github.com/lyft/protoc-gen-validate)*
+) can be used to auto-generate validate methods for each method from
+proto files.
 
-Note -
+##### Consuming internal GRPC service
 
--   This will automatically pull the docker image tagged as "latest" for
-    > the service.
+If a method makes any internal GRPC call(s), then it **must** use the
+*[[NewRequestHeader]{.underline}](https://github.com/tsocial/credit-line-common/blob/master/header/request.go)*
+method to generate NewHeader for every single call to be made. To
+NewRequestHeader function, it must pass
 
--   Images are created by Travis. For each environment the branch used
-    > for building image is pre-configured.For dev environment, images
-    > are built from master branch.
+f.  TBC clientId(??)
 
--   This will only pull latest image, but if any configuration changes
-    > are required, the job has to be submitted again using nomad cli
-    > client.
+g.  TBC accessToken (??)
 
-![](media/image2.gif){width="6.5in" height="2.4444444444444446in"}
+h.  seed as -
+
+    i.  idempotencyId of incoming requestHeader
+
+    ii. another deterministic unique identifier such that every time the
+        > original request is reprocessed, the unique identifier
+        > supplied for given underlying call would always be same
+
+code snippet -
+
++-----------------------------------------------------------------------+
+| h := header.NewRequestHeader(in.Header.ClientId,                      |
+| in.Header.AccessToken, in.Header.IdempotencyId, in.CustomerId)        |
+|                                                                       |
+| req := &grpc2.AcquireCreditLineRequest{                               |
+|                                                                       |
+| Header: h,                                                            |
+|                                                                       |
+| OrderAmount: in.LoanAmount,                                           |
+|                                                                       |
+| MerchantName: in.MerchantName,                                        |
+|                                                                       |
+| MerchantUserId: in.CustomerId,                                        |
+|                                                                       |
+| PhoneNumber: in.PhoneNumber, *// required*                            |
+|                                                                       |
+| }                                                                     |
+|                                                                       |
+| resp, err := s.clc.AcquireCreditLine(ctx, req)                        |
+|                                                                       |
+| **if** err != nil {                                                   |
+|                                                                       |
+| **return** nil, err                                                   |
+|                                                                       |
+| }                                                                     |
++-----------------------------------------------------------------------+
+
+This is essential to guarantee all underlying calls made remain
+idempotent, in case of retry on failures.
